@@ -1,0 +1,5 @@
+/home/user/gau_tlm_bus/build/CMakeFiles/rebuild_cache.dir
+/home/user/gau_tlm_bus/build/CMakeFiles/edit_cache.dir
+/home/user/gau_tlm_bus/build/CMakeFiles/check.dir
+/home/user/gau_tlm_bus/build/CMakeFiles/run.dir
+/home/user/gau_tlm_bus/build/CMakeFiles/gau_blur.dir
