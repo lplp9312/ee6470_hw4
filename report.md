@@ -18,17 +18,22 @@
 
 ### systemC程式碼重點介紹
 
-#### 用來進行 Gaussian Blur 的3X3矩陣 (GauFilter.cpp)
+#### 用來進行 Gaussian Blur 的3X3矩陣 (filter_def.h)
 
         const double mask[MASK_X][MASK_Y] = {0.077847, 0.123317, 0.077847, 0.123317, 0.195346, 0.123317, 0.077847, 0.123317, 0.077847};
 
-#### Testbench,GauFilter 的建立和 i_skt,t_skt (socket) 的連接 (main.cpp)
+#### Testbench,GauFilter,SimpleBus 的建立和 Testbench::i_skt->SimpleBus::t_skt[0]、SimpleBus::i_skt[0]->GauFilter::t_skt 的連接 (main.cpp)
 
         Testbench tb("tb");
+        SimpleBus<1, 1> bus("bus");
+        bus.set_clock_period(sc_time(CLOCK_PERIOD, SC_NS));
         GauFilter gau_filter("gau_filter");
-        tb.initiator.i_skt(gau_filter.t_skt);
+        tb.initiator.i_skt(bus.t_skt[0]);
+        bus.setDecode(0, Gau_MM_BASE, Gau_MM_BASE + Gau_MM_SIZE - 1);
+        bus.i_skt[0](gau_filter.t_skt);
 
-#### Initiator <sc_module> 和 i_skt 的建立 (Initiator.h)
+
+#### Initiator <sc_module> 和 i_skt 的建立，Testbench <sc_module> 的 sub-module (Initiator.h)
 
         class Initiator : public sc_module
         {
@@ -45,6 +50,34 @@
             void do_trans(tlm::tlm_generic_payload &trans);
             tlm::tlm_generic_payload trans;
         };
+
+#### 定義 SimpleBus <sc_module> Debug 會使用到的 print() function (tlm_log.h)
+
+        namespace tshsu {
+        std::string print(const unsigned int u);
+        std::string print(const sc_dt::uint64 u64);
+        std::string print(const tlm::tlm_command command);
+        std::string print(const tlm::tlm_sync_enum sync_enum);
+        std::string print(const sc_core::sc_time &t, bool unit = true);
+        } 
+
+#### SimpleBus <sc_module> 的建立，i_skt,t_stk,MemoryMap 的管理 (SimploBus.h)
+
+        SC_HAS_PROCESS(SimpleBus);
+        SimpleBus(sc_core::sc_module_name name, double clock_period_in_ps = 1000,
+                    bool trace = false, bool masked = true)
+            : sc_core::sc_module(name), MemoryMap(name, NR_OF_INITIATOR_SOCKETS),
+                clock_period(clock_period_in_ps, sc_core::SC_PS), m_trace(trace),
+                m_is_address_masked(masked) {
+            for (unsigned int i = 0; i < NR_OF_TARGET_SOCKETS; ++i) {
+                t_skt[i].register_b_transport(this, &SimpleBus::initiatorBTransport, i);
+                t_skt[i].register_transport_dbg(this, &SimpleBus::transportDebug, i);
+                t_skt[i].register_get_direct_mem_ptr(this, &SimpleBus::getDMIPointer, i);
+            }
+            for (unsigned int i = 0; i < NR_OF_INITIATOR_SOCKETS; ++i) {
+                i_skt[i].register_invalidate_direct_mem_ptr(this, &SimpleBus::invalidateDMIPointers, i);
+            }
+        }    
 
 #### GauFilter <sc_module> 內部使用的 7條 FIFO_channel 和 t_skt 的建立 (GauFilter.h)
 
@@ -155,7 +188,7 @@
                 mask[i] = 0xff;
 
             data.uint = width; //transfer width information for first time (unsigned int)
-            initiator.write_to_socket(GAU_FILTER_R_ADDR, mask, data.uc, 4);
+            initiator.write_to_socket(Gau_MM_BASE + GAU_FILTER_R_ADDR, mask, data.uc, 4);
 
             wait(5 * CLOCK_PERIOD, SC_NS);
 
@@ -173,7 +206,7 @@
                     mask[1] = 0xff;
                     mask[2] = 0xff;
                     mask[3] = 0;
-                    initiator.write_to_socket(GAU_FILTER_R_ADDR, mask, data.uc, 4);
+                    initiator.write_to_socket(Gau_MM_BASE + GAU_FILTER_R_ADDR, mask, data.uc, 4);
                     total_pixel = total_pixel + 1;
                 }
 
@@ -281,7 +314,7 @@
             {
                 for (int j = 0; j < width; j++)
                 {
-                    initiator.read_from_socket(GAU_FILTER_RESULT_ADDR, mask, data.uc, 4);
+                    initiator.read_from_socket(Gau_MM_BASE + GAU_FILTER_RESULT_ADDR, mask, data.uc, 4);
                     *(target_bitmap + bytes_per_pixel * (width * i + j) + 2) = data.uc[0];
                     *(target_bitmap + bytes_per_pixel * (width * i + j) + 1) = data.uc[1];
                     *(target_bitmap + bytes_per_pixel * (width * i + j) + 0) = data.uc[2];
