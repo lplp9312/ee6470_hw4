@@ -1,4 +1,4 @@
-# HW3 Report 蕭詠倫 109061634
+# HW4 Report 蕭詠倫 109061634
 
 ## 用 systemC 程式對 bmp 圖檔進行 Gaussian Blur (高斯模糊)
 
