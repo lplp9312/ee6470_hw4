@@ -61,7 +61,7 @@
         std::string print(const sc_core::sc_time &t, bool unit = true);
         } 
 
-#### SimpleBus <sc_module> 的建立，i_skt,t_stk,MemoryMap 的管理 (SimploBus.h)
+#### SimpleBus <sc_module> 的建立，i_skt,t_skt,MemoryMap 的管理 (SimploBus.h)
 
         SC_HAS_PROCESS(SimpleBus);
         SimpleBus(sc_core::sc_module_name name, double clock_period_in_ps = 1000,
